@@ -14,10 +14,7 @@ split_data <- raw_data |>
     # pattern is 100 hyphens
   )
 
-# Now we start building out a dataframe
-
-# Create a dataframe with each row as a different pairing
-split_dataframe <- tibble(split_data)
+# Define regular expression functions for parsing -------------------------
 
 # Define the regex functions we'll need to parse this data
 
@@ -79,6 +76,45 @@ str_flight_table <- function(data){
   str_extract_all(data, pattern = flight_table_regex)
 }
 
+str_credit <- function(data){
+  # ex. Credit: 024:00
+  str_extract(data, pattern = "(?<=Credit: )[[:digit:]]{3}:[[:digit:]]{2}")
+}
+
+str_tafb <- function(data){
+  # ex. TAFB: 024:00
+  str_extract(data, pattern = "(?<=Credit: )[[:digit:]]{3}:[[:digit:]]{2}")
+}
+
+str_crew_comp <- function(data){
+  # ex. Crew Comp:  1 CA, 1 FO
+  str_extract_all(data, pattern = "\\b[[:digit:]]\\s[ACFO]{2}[[:digit:]]*")
+}
+
+str_dates <- function(data){
+  # ex.
+  # +---------------------+
+  # | S  M  T  W  T  F  S |
+  # |=====================|
+  # |         -- -- -- -- |
+  # |-- -- -- 07 -- -- -- |
+  # |-- -- -- 14 -- -- -- |
+  # |-- -- -- 21 -- -- -- |
+  # |-- -- -- 28 -- --    |
+  # +---------------------+
+  str_extract_all(
+    data, 
+    pattern = "(?<=\\|.{0,20})([[:digit:]]{2})(?=.{0,20}\\|)"
+    )
+}
+
+
+# Build parsed data -------------------------------------------------------
+
+# Now we start building out a dataframe
+
+# Create a dataframe with each row as a different pairing
+split_dataframe <- tibble(split_data)
 
 # Now we leverage regex to create new columns
 parsed_data <- split_dataframe |>
@@ -94,5 +130,15 @@ parsed_data <- split_dataframe |>
     # Month and Year
     my = str_my(split_data),
     # Flight Table
-    flight_table = str_flight_table(split_data)
-  )
+    flight_table = str_flight_table(split_data),
+    # Credit
+    credit = str_credit(split_data),
+    # Time Away From Base
+    tafb = str_tafb(split_data),
+    # Crew Complement
+    crew_comp = str_crew_comp(split_data),
+    # Dates
+    dates = str_dates(split_data)
+  ) |>
+  # As a final step we drop NAs caused by quirks of the import process
+  drop_na(pairing_id)
